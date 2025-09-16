@@ -1,0 +1,170 @@
+
+import React, { useState, useEffect } from "react";
+import { Dispute } from "@/entities/all";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from "recharts";
+import { 
+  TrendingUp, 
+  AlertTriangle, 
+  Clock, 
+  CheckCircle,
+  Calendar,
+  XCircle // Added XCircle for displaying error messages
+} from "lucide-react";
+import { format, subDays, startOfDay } from "date-fns";
+import { motion } from "framer-motion";
+
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'];
+
+export default function Analytics() {
+  const [disputes, setDisputes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null); // New state to handle network errors
+
+  useEffect(() => {
+    loadDisputes();
+  }, []);
+
+  const loadDisputes = async () => {
+    setIsLoading(true);
+    setFetchError(null); // Clear any previous errors before a new attempt
+    try {
+      const data = await Dispute.list("-created_date");
+      setDisputes(data);
+    } catch (error) {
+      console.error("Error loading disputes:", error);
+      // Set a user-friendly error message
+      setFetchError(error.message || "Failed to load analytics data. Please try again.");
+    }
+    setIsLoading(false);
+  };
+
+  const getDisputesByType = () => {
+    const typeCount = {};
+    disputes.forEach(dispute => {
+      const type = dispute.dispute_type || 'other';
+      typeCount[type] = (typeCount[type] || 0) + 1;
+    });
+    
+    return Object.entries(typeCount).map(([type, count]) => ({
+      name: type.replace(/_/g, ' '),
+      value: count
+    }));
+  };
+
+  const getDisputesByStatus = () => {
+    const statusCount = {};
+    disputes.forEach(dispute => {
+      const status = dispute.status || 'submitted';
+      statusCount[status] = (statusCount[status] || 0) + 1;
+    });
+    
+    return Object.entries(statusCount).map(([status, count]) => ({
+      name: status.replace(/_/g, ' '),
+      count: count
+    }));
+  };
+
+  const getDisputesByDay = () => {
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = startOfDay(subDays(new Date(), i));
+      const dayDisputes = disputes.filter(dispute => 
+        startOfDay(new Date(dispute.created_date)).getTime() === date.getTime()
+      );
+      
+      last7Days.push({
+        date: format(date, 'MMM d'),
+        disputes: dayDisputes.length,
+        resolved: dayDisputes.filter(d => d.status === 'resolved').length
+      });
+    }
+    return last7Days;
+  };
+
+  const getTopCustomers = () => {
+    const customerCount = {};
+    disputes.forEach(dispute => {
+      const email = dispute.customer_email;
+      if (email) {
+        customerCount[email] = (customerCount[email] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(customerCount)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([email, count]) => ({
+        email,
+        count
+      }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+          <p className="text-slate-600 mt-4">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Display error message if data loading failed
+  if (fetchError) {
+    return (
+      <div className="p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-lg shadow-xl border border-red-200">
+          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-red-700 mb-2">Error Loading Data</h2>
+          <p className="text-slate-700 mb-4">{fetchError}</p>
+          <button
+            onClick={loadDisputes}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const disputesByType = getDisputesByType();
+  const disputesByStatus = getDisputesByStatus();
+  const disputesByDay = getDisputesByDay();
+  const topCustomers = getTopCustomers();
+
+  const totalDisputes = disputes.length;
+  const resolvedDisputes = disputes.filter(d => d.status === 'resolved').length;
+  const avgAmount = disputes.reduce((sum, d) => sum + (d.amount || 0), 0) / totalDisputes || 0;
+  const resolutionRate = totalDisputes ? (resolvedDisputes / totalDisputes * 100).toFixed(1) : 0;
+
+  return (
+    <div className="p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            Analytics Dashboard
+          </h1>
+          <p className="text-slate-600">
+            Comprehensive insights into dispute trends and performance
+          </p>
+        </div>
+
+        {/* Key Metrics */}
