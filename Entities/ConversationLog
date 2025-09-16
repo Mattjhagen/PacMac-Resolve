@@ -1,0 +1,37 @@
+{
+  "name": "ConversationLog",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Unique identifier for a single conversation session"
+    },
+    "user_query": {
+      "type": "string",
+      "description": "The user's message or question"
+    },
+    "ai_response": {
+      "type": "string",
+      "description": "The AI assistant's response"
+    },
+    "rating": {
+      "type": "string",
+      "enum": [
+        "good",
+        "bad",
+        "none"
+      ],
+      "default": "none",
+      "description": "User feedback on the AI's response"
+    },
+    "escalated_dispute_id": {
+      "type": "string",
+      "description": "The ID of the dispute created if the conversation was escalated"
+    }
+  },
+  "required": [
+    "session_id",
+    "user_query",
+    "ai_response"
+  ]
+}
