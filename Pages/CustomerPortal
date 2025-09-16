@@ -1,0 +1,170 @@
+
+import React, { useState } from "react";
+import { Dispute } from "@/entities/all";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, Search, Plus, Eye } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { motion } from "framer-motion";
+
+import DisputeForm from "../components/customer/DisputeForm";
+import DisputeTracker from "../components/customer/DisputeTracker";
+
+export default function CustomerPortal() {
+  const [activeTab, setActiveTab] = useState("track");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [foundDispute, setFoundDispute] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+
+  const handleTrackDispute = async () => {
+    if (!searchQuery.trim()) {
+      setSearchError("Please enter a dispute ID or email address.");
+      return;
+    }
+    
+    setIsSearching(true);
+    setSearchError("");
+    setFoundDispute(null);
+
+    try {
+      // Search by dispute ID
+      const disputesById = await Dispute.filter({
+        dispute_id: searchQuery
+      });
+      
+      if (disputesById.length > 0) {
+        setFoundDispute(disputesById[0]);
+      } else {
+        // If not found by ID, try searching by email
+        const disputesByEmail = await Dispute.filter({
+          customer_email: searchQuery
+        });
+        
+        if (disputesByEmail.length > 0) {
+          // If multiple disputes found by email, typically show the most recent or all,
+          // for simplicity we show the first one here.
+          setFoundDispute(disputesByEmail[0]); 
+        } else {
+          setSearchError("No dispute found with that ID or email address.");
+        }
+      }
+    } catch (error) {
+      console.error("Error tracking dispute:", error); // Log the actual error for debugging
+      // Provide a more informative message if the error object contains one, otherwise a generic one.
+      setSearchError(error.message || "A network error occurred or the service is unavailable. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleDisputeSubmitted = (newDispute) => {
+    setActiveTab("track");
+    setFoundDispute(newDispute);
+    setSearchQuery(newDispute.dispute_id);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            Customer Support Portal
+          </h1>
+          <p className="text-slate-600">
+            Submit new disputes or track existing ones for PacMac MarketPlace
+          </p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-xl p-1 shadow-lg border border-slate-200/60">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab("track")}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === "track"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                }`}
+              >
+                <Search className="w-4 h-4" />
+                Track Dispute
+              </button>
+              <button
+                onClick={() => setActiveTab("submit")}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === "submit"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200"
+                    : "text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                Submit Dispute
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {activeTab === "track" ? (
+            <div className="space-y-6">
+              {/* Search Section */}
+              <Card className="shadow-lg border-slate-200/60 bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="w-5 h-5 text-blue-600" />
+                    Track Your Dispute
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="Enter dispute ID or email address..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleTrackDispute()}
+                    />
+                    <Button 
+                      onClick={handleTrackDispute}
+                      disabled={isSearching || !searchQuery.trim()}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      {isSearching ? "Searching..." : "Track"}
+                    </Button>
+                  </div>
+                  
+                  {searchError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{searchError}</AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Dispute Results */}
+              {foundDispute && (
+                <DisputeTracker dispute={foundDispute} />
+              )}
+            </div>
+          ) : (
+            <DisputeForm onDisputeSubmitted={handleDisputeSubmitted} />
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+}
