@@ -1,0 +1,254 @@
+
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  Eye,
+  User,
+  Calendar,
+  DollarSign,
+  Mail,
+  Phone
+} from "lucide-react";
+import { format } from "date-fns";
+import { motion } from "framer-motion";
+
+const statusSteps = [
+  { key: "submitted", label: "Submitted", icon: AlertTriangle },
+  { key: "under_review", label: "Under Review", icon: Eye },
+  { key: "investigating", label: "Investigating", icon: Clock },
+  { key: "waiting_customer", label: "Waiting for Customer", icon: User },
+  { key: "resolved", label: "Resolved", icon: CheckCircle },
+  { key: "closed", label: "Closed", icon: CheckCircle }
+];
+
+const statusColors = {
+  submitted: "text-blue-600 bg-blue-100",
+  under_review: "text-amber-600 bg-amber-100",
+  investigating: "text-purple-600 bg-purple-100",
+  waiting_customer: "text-orange-600 bg-orange-100",
+  resolved: "text-emerald-600 bg-emerald-100",
+  closed: "text-slate-600 bg-slate-100"
+};
+
+export default function DisputeTracker({ dispute }) {
+  // Handle cases where dispute object might be null or undefined due to network errors or data loading issues
+  if (!dispute) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card className="shadow-lg border-slate-200/60 bg-white/80 backdrop-blur-sm p-6 text-center">
+          <CardTitle className="text-xl font-bold text-slate-900 mb-4">
+            Dispute Data Not Available
+          </CardTitle>
+          <p className="text-slate-600">
+            We couldn't load the dispute details. Please ensure the dispute ID is correct and try again later.
+          </p>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  // Ensure dispute.status exists before finding index
+  const currentStepIndex = dispute.status
+    ? statusSteps.findIndex(step => step.key === dispute.status)
+    : -1;
+
+  // Use a safe index for progress, defaulting to 0 (Submitted) if status is not found or null
+  const safeCurrentStepIndex = currentStepIndex !== -1 ? currentStepIndex : 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <Card className="shadow-lg border-slate-200/60 bg-white/80 backdrop-blur-sm">
+        <CardHeader className="border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl font-bold text-slate-900">
+              Dispute #{dispute.dispute_id || 'N/A'}
+            </CardTitle>
+            <Badge className={`${dispute.status && statusColors[dispute.status] ? statusColors[dispute.status] : 'text-slate-600 bg-slate-100'} border-0 text-sm font-semibold`}>
+              {dispute.status ? dispute.status.replace(/_/g, ' ') : 'Unknown Status'}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-8">
+          {/* Progress Steps */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Progress Status</h3>
+
+            <div className="relative">
+              {/* Progress Line */}
+              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200"></div>
+              <div
+                className="absolute left-4 top-0 w-0.5 bg-gradient-to-b from-blue-500 to-emerald-500 transition-all duration-1000"
+                style={{ height: `${Math.max(0, (safeCurrentStepIndex) * 25)}%` }}
+              ></div>
+
+              <div className="space-y-6">
+                {statusSteps.map((step, index) => {
+                  const StepIcon = step.icon;
+                  const isActive = index <= safeCurrentStepIndex;
+                  const isCurrent = index === safeCurrentStepIndex;
+
+                  return (
+                    <motion.div
+                      key={step.key}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="relative flex items-center gap-4"
+                    >
+                      <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                        isActive
+                          ? isCurrent
+                            ? 'bg-blue-600 border-blue-600 shadow-lg shadow-blue-200'
+                            : 'bg-emerald-500 border-emerald-500'
+                          : 'bg-white border-slate-300'
+                      }`}>
+                        <StepIcon className={`w-4 h-4 ${
+                          isActive ? 'text-white' : 'text-slate-400'
+                        }`} />
+                      </div>
+
+                      <div className={`flex-1 ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                        <p className={`font-semibold ${isCurrent ? 'text-blue-700' : ''}`}>
+                          {step.label}
+                        </p>
+                        {isCurrent && dispute.last_update && (
+                          <p className="text-sm text-slate-600 mt-1">
+                            {/* Check if last_update is a valid date before formatting */}
+                            {format(new Date(dispute.last_update), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+
+                      {isCurrent && (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 animate-pulse">
+                          Current
+                        </Badge>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Dispute Information */}
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900">Contact Information</h3>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-slate-500" />
+                  <span className="font-medium">{dispute.customer_name || 'N/A'}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  <span>{dispute.customer_email || 'N/A'}</span>
+                </div>
+
+                {dispute.customer_phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-slate-500" />
+                    <span>{dispute.customer_phone}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900">Dispute Details</h3>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Type:</span>
+                  <Badge variant="outline">
+                    {dispute.dispute_type ? dispute.dispute_type.replace(/_/g, ' ') : 'N/A'}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Priority:</span>
+                  <Badge className={`${
+                    dispute.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                    dispute.priority === 'high' ? 'bg-amber-100 text-amber-700' :
+                    'bg-blue-100 text-blue-700'
+                  } border-0`}>
+                    {dispute.priority || 'N/A'}
+                  </Badge>
+                </div>
+
+                {/* Check for null or undefined explicitly for amount, as 0 is a valid value */}
+                {dispute.amount !== undefined && dispute.amount !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Amount:</span>
+                    <span className="font-semibold flex items-center gap-1">
+                      <DollarSign className="w-4 h-4" />
+                      {dispute.amount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Submitted:</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {dispute.created_date ? format(new Date(dispute.created_date), 'MMM d, yyyy') : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Issue Description</h3>
+            <div className="p-4 bg-slate-50 rounded-lg border">
+              <p className="text-slate-700">{dispute.description || 'No description provided.'}</p>
+            </div>
+          </div>
+
+          {/* Expected Resolution */}
+          {dispute.estimated_resolution && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-2">Expected Resolution</h4>
+              <p className="text-blue-800">
+                {/* Check if estimated_resolution is a valid date before formatting */}
+                {format(new Date(dispute.estimated_resolution), 'MMMM d, yyyy')}
+              </p>
+            </div>
+          )}
+
+          {/* Contact Support */}
+          <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-4 rounded-lg border border-slate-200">
+            <h4 className="font-semibold text-slate-900 mb-2">Need Help?</h4>
+            <p className="text-slate-600 text-sm mb-3">
+              If you have questions about your dispute, please contact our support team.
+            </p>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1">
+                <Phone className="w-4 h-4" />
+                1-800-PACMAC-1
+              </span>
+              <span className="flex items-center gap-1">
+                <Mail className="w-4 h-4" />
+                support@pacmac.com
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
