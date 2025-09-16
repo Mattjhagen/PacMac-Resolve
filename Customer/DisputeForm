@@ -1,0 +1,317 @@
+
+import React, { useState } from "react";
+import { Dispute } from "@/entities/all";
+import { SendEmail } from "@/integrations/Core";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Send, CheckCircle } from "lucide-react";
+import { motion } from "framer-motion";
+
+const disputeTypes = [
+  { value: "refund", label: "Refund Request" },
+  { value: "product_quality", label: "Product Quality Issue" },
+  { value: "delivery_issue", label: "Delivery Problem" },
+  { value: "billing_error", label: "Billing Error" },
+  { value: "unauthorized_charge", label: "Unauthorized Charge" },
+  { value: "other", label: "Other Issue" }
+];
+
+const priorities = [
+  { value: "low", label: "Low Priority" },
+  { value: "medium", label: "Medium Priority" },
+  { value: "high", label: "High Priority" },
+  { value: "urgent", label: "Urgent" }
+];
+
+export default function DisputeForm({ onDisputeSubmitted }) {
+  const [formData, setFormData] = useState({
+    customer_name: "",
+    customer_email: "",
+    customer_phone: "",
+    order_id: "",
+    dispute_type: "",
+    priority: "medium",
+    description: "",
+    amount: ""
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const generateDisputeId = () => {
+    const timestamp = Date.now().toString();
+    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+    return `PM-${timestamp.slice(-6)}${random}`;
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setError("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.customer_name || !formData.customer_email || !formData.dispute_type || !formData.description) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const disputeId = generateDisputeId();
+      
+      const disputeData = {
+        ...formData,
+        dispute_id: disputeId,
+        status: "submitted",
+        amount: formData.amount ? parseFloat(formData.amount) : null
+      };
+
+      const newDispute = await Dispute.create(disputeData);
+
+      // Send confirmation email
+      await SendEmail({
+        to: formData.customer_email,
+        subject: `Dispute Submitted - ${disputeId}`,
+        body: `Dear ${formData.customer_name},
+
+Thank you for contacting PacMac MarketPlace support. Your dispute has been successfully submitted.
+
+Dispute Details:
+- Dispute ID: ${disputeId}
+- Type: ${formData.dispute_type.replace(/_/g, ' ')}
+- Status: Under Review
+- Priority: ${formData.priority}
+
+Our team will review your case and respond within 24-48 hours. You can track the progress of your dispute using the dispute ID above.
+
+Thank you for your patience.
+
+Best regards,
+PacMac Customer Service Team`
+      });
+
+      setSuccess(true);
+      onDisputeSubmitted(newDispute);
+
+      // Reset form
+      setFormData({
+        customer_name: "",
+        customer_email: "",
+        customer_phone: "",
+        order_id: "",
+        dispute_type: "",
+        priority: "medium",
+        description: "",
+        amount: ""
+      });
+
+    } catch (error) {
+      setError("Error submitting dispute. Please try again.");
+      console.error("Dispute submission error:", error);
+    }
+
+    setIsSubmitting(false);
+  };
+
+  if (success) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+      >
+        <Card className="shadow-lg border-slate-200/60 bg-white/80 backdrop-blur-sm">
+          <CardContent className="text-center py-12">
+            <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Dispute Submitted Successfully!</h3>
+            <p className="text-slate-600 mb-6">
+              Your dispute has been received and our team will review it shortly.
+              You should receive a confirmation email with your dispute ID.
+            </p>
+            <Button 
+              onClick={() => setSuccess(false)}
+              variant="outline"
+            >
+              Submit Another Dispute
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  return (
+    <Card className="shadow-lg border-slate-200/60 bg-white/80 backdrop-blur-sm">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-slate-900">
+          Submit New Dispute
+        </CardTitle>
+        <p className="text-slate-600">
+          Please provide detailed information about your issue
+        </p>
+      </CardHeader>
+      
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Customer Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Customer Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Full Name *
+                </label>
+                <Input
+                  placeholder="Enter your full name"
+                  value={formData.customer_name}
+                  onChange={(e) => handleInputChange("customer_name", e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Email Address *
+                </label>
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={formData.customer_email}
+                  onChange={(e) => handleInputChange("customer_email", e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Phone Number
+                </label>
+                <Input
+                  placeholder="Enter your phone number"
+                  value={formData.customer_phone}
+                  onChange={(e) => handleInputChange("customer_phone", e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Order/Transaction ID
+                </label>
+                <Input
+                  placeholder="Enter order ID if applicable"
+                  value={formData.order_id}
+                  onChange={(e) => handleInputChange("order_id", e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Dispute Details */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Dispute Details</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Issue Type *
+                </label>
+                <Select 
+                  value={formData.dispute_type} 
+                  onValueChange={(value) => handleInputChange("dispute_type", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select issue type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {disputeTypes.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Priority Level
+                </label>
+                <Select 
+                  value={formData.priority} 
+                  onValueChange={(value) => handleInputChange("priority", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorities.map(priority => (
+                      <SelectItem key={priority.value} value={priority.value}>
+                        {priority.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Disputed Amount (if applicable)
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Enter amount in USD"
+                value={formData.amount}
+                onChange={(e) => handleInputChange("amount", e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Description *
+              </label>
+              <Textarea
+                placeholder="Please provide detailed information about your issue..."
+                value={formData.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                rows={5}
+                required
+              />
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 py-3"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {isSubmitting ? "Submitting..." : "Submit Dispute"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
