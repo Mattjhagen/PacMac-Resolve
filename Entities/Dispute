@@ -1,0 +1,94 @@
+{
+  "name": "Dispute",
+  "type": "object",
+  "properties": {
+    "dispute_id": {
+      "type": "string",
+      "description": "Unique dispute identifier"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Name of the customer filing dispute"
+    },
+    "customer_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Customer email address"
+    },
+    "customer_phone": {
+      "type": "string",
+      "description": "Customer phone number"
+    },
+    "order_id": {
+      "type": "string",
+      "description": "Related order/transaction ID"
+    },
+    "dispute_type": {
+      "type": "string",
+      "enum": [
+        "refund",
+        "product_quality",
+        "delivery_issue",
+        "billing_error",
+        "unauthorized_charge",
+        "other"
+      ],
+      "description": "Type of dispute"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium",
+      "description": "Dispute priority level"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "submitted",
+        "under_review",
+        "investigating",
+        "waiting_customer",
+        "resolved",
+        "closed"
+      ],
+      "default": "submitted",
+      "description": "Current dispute status"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the issue"
+    },
+    "resolution": {
+      "type": "string",
+      "description": "Resolution details when completed"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Disputed amount"
+    },
+    "assigned_agent": {
+      "type": "string",
+      "description": "Staff member handling the dispute"
+    },
+    "estimated_resolution": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected resolution date"
+    },
+    "last_update": {
+      "type": "string",
+      "description": "Latest update message"
+    }
+  },
+  "required": [
+    "customer_name",
+    "customer_email",
+    "dispute_type",
+    "description"
+  ]
+}
