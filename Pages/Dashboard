@@ -1,0 +1,147 @@
+
+import React, { useState, useEffect } from "react";
+import { Dispute, ServiceQueue } from "@/entities/all";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Shield, 
+  Clock, 
+  TrendingUp, 
+  Users,
+  AlertTriangle,
+  CheckCircle,
+  Eye,
+  Plus
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { motion } from "framer-motion";
+import { format } from "date-fns";
+
+import StatsOverview from "../components/dashboard/StatsOverview";
+import RecentDisputes from "../components/dashboard/RecentDisputes";
+import QueueStatus from "../components/dashboard/QueueStatus";
+import DisputeDetails from "../components/dashboard/DisputeDetails";
+
+export default function Dashboard() {
+  const [disputes, setDisputes] = useState([]);
+  const [queues, setQueues] = useState([]);
+  const [selectedDispute, setSelectedDispute] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [disputeData, queueData] = await Promise.all([
+        Dispute.list("-created_date", 50),
+        ServiceQueue.list("-last_updated")
+      ]);
+      setDisputes(disputeData);
+      setQueues(queueData);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      // Potentially add user-facing error notification here
+    }
+    setIsLoading(false);
+  };
+
+  const updateDisputeStatus = async (disputeId, newStatus, updateMessage) => {
+    try {
+      await Dispute.update(disputeId, {
+        status: newStatus,
+        last_update: updateMessage,
+        updated_date: new Date().toISOString()
+      });
+      loadData(); // Reload data to reflect changes
+    } catch (error) {
+      console.error("Error updating dispute:", error);
+      // Potentially add user-facing error notification here
+    }
+  };
+
+  const getDisputeStats = () => {
+    const total = disputes.length;
+    const open = disputes.filter(d => !['resolved', 'closed'].includes(d.status)).length;
+    const urgent = disputes.filter(d => d.priority === 'urgent').length;
+    const avgResolutionTime = 2.3; // This would be calculated from actual data in a real application
+    
+    return { total, open, urgent, avgResolutionTime };
+  };
+
+  const stats = getDisputeStats();
+
+  return (
+    <div className="p-6 space-y-8 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Dispute Management</h1>
+            <p className="text-slate-600">Monitor and manage customer disputes for PacMac MarketPlace</p>
+          </div>
+          <Link to={createPageUrl("CustomerPortal")}>
+            <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-200 transition-all duration-300">
+              <Plus className="w-4 h-4 mr-2" />
+              New Dispute
+            </Button>
+          </Link>
+        </div>
+
+        {/* Stats Overview */}
+        <StatsOverview stats={stats} isLoading={isLoading} />
+
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Recent Disputes & Queue */}
+          <div className="lg:col-span-2 space-y-8">
+            <RecentDisputes 
+              disputes={disputes}
+              isLoading={isLoading}
+              onSelectDispute={setSelectedDispute}
+              onUpdateStatus={updateDisputeStatus}
+            />
+            
+            <QueueStatus queues={queues} isLoading={isLoading} />
+          </div>
+
+          {/* Right Column - Dispute Details */}
+          <div className="space-y-8">
+            <DisputeDetails 
+              dispute={selectedDispute}
+              onUpdateStatus={updateDisputeStatus}
+            />
+
+            {/* Quick Actions Card */}
+            <Card className="bg-gradient-to-br from-slate-50 to-blue-50 border-slate-200/60 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link to={createPageUrl("ServiceQueue")}>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Users className="w-4 h-4 mr-2" />
+                    Manage Queue
+                  </Button>
+                </Link>
+                <Link to={createPageUrl("Analytics")}>
+                  <Button variant="outline" className="w-full justify-start">
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    View Analytics
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
