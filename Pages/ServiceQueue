@@ -1,0 +1,170 @@
+
+import React, { useState, useEffect, useCallback } from "react";
+import { ServiceQueue } from "@/entities/all";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { 
+  Phone, 
+  MessageCircle, 
+  Mail, 
+  Clock,
+  Users,
+  UserCheck,
+  RefreshCw,
+  Plus,
+  Minus
+} from "lucide-react";
+import { motion } from "framer-motion";
+
+export default function ServiceQueuePage() {
+  const [queues, setQueues] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadQueues = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await ServiceQueue.list("-last_updated");
+      if (data.length === 0) {
+        // Initialize default queues if none exist
+        await initializeDefaultQueues();
+        const newData = await ServiceQueue.list("-last_updated");
+        setQueues(newData);
+      } else {
+        setQueues(data);
+      }
+    } catch (error) {
+      console.error("Error loading queues:", error);
+    }
+    setIsLoading(false);
+  }, []); // Empty dependency array because initializeDefaultQueues is not a dependency that would change.
+
+  useEffect(() => {
+    loadQueues();
+  }, [loadQueues]);
+
+  const initializeDefaultQueues = async () => {
+    const defaultQueues = [
+      {
+        queue_type: "phone",
+        current_wait_time: 5,
+        queue_length: 3,
+        agents_available: 2,
+        agents_busy: 4,
+        last_updated: new Date().toISOString()
+      },
+      {
+        queue_type: "chat", 
+        current_wait_time: 2,
+        queue_length: 8,
+        agents_available: 3,
+        agents_busy: 2,
+        last_updated: new Date().toISOString()
+      },
+      {
+        queue_type: "email",
+        current_wait_time: 45,
+        queue_length: 12,
+        agents_available: 1,
+        agents_busy: 3,
+        last_updated: new Date().toISOString()
+      }
+    ];
+
+    for (const queue of defaultQueues) {
+      await ServiceQueue.create(queue);
+    }
+  };
+
+  const updateQueue = async (queueId, updates) => {
+    try {
+      await ServiceQueue.update(queueId, {
+        ...updates,
+        last_updated: new Date().toISOString()
+      });
+      loadQueues();
+    } catch (error) {
+      console.error("Error updating queue:", error);
+    }
+  };
+
+  const queueConfig = {
+    phone: { 
+      icon: Phone, 
+      color: "from-blue-500 to-blue-600", 
+      bg: "bg-blue-50", 
+      text: "text-blue-700",
+      name: "Phone Support"
+    },
+    chat: { 
+      icon: MessageCircle, 
+      color: "from-emerald-500 to-green-600", 
+      bg: "bg-emerald-50", 
+      text: "text-emerald-700",
+      name: "Live Chat"
+    },
+    email: { 
+      icon: Mail, 
+      color: "from-purple-500 to-purple-600", 
+      bg: "bg-purple-50", 
+      text: "text-purple-700",
+      name: "Email Support"
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+            <p className="text-slate-600 mt-4">Loading queue status...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 min-h-screen">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">
+              Service Queue Management
+            </h1>
+            <p className="text-slate-600">
+              Monitor and manage customer service wait times
+            </p>
+          </div>
+          <Button onClick={loadQueues} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Queue Cards */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {queues.map((queue, index) => {
+            const config = queueConfig[queue.queue_type];
+            const Icon = config.icon;
+            
+            return (
+              <motion.div
+                key={queue.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className="shadow-lg border-slate-200/60 bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+                  <CardHeader className="text-center pb-4">
+                    <div className={`w-16 h-16 mx-auto rounded-2xl ${config.bg} flex items-center justify-center mb-3`}>
+                      <Icon className={`w-8 h-8 ${config.text}`} />
+                    </div>
+                    <CardTitle className="text-xl font-bold text-slate-900">
+                      {config.name}
+                    </CardTitle>
+                  </CardHeader>
+                  
