@@ -1,0 +1,39 @@
+{
+  "name": "ServiceQueue",
+  "type": "object",
+  "properties": {
+    "queue_type": {
+      "type": "string",
+      "enum": [
+        "phone",
+        "chat",
+        "email"
+      ],
+      "description": "Type of service queue"
+    },
+    "current_wait_time": {
+      "type": "number",
+      "description": "Current wait time in minutes"
+    },
+    "queue_length": {
+      "type": "number",
+      "description": "Number of customers waiting"
+    },
+    "agents_available": {
+      "type": "number",
+      "description": "Number of available agents"
+    },
+    "agents_busy": {
+      "type": "number",
+      "description": "Number of busy agents"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When queue status was last updated"
+    }
+  },
+  "required": [
+    "queue_type"
+  ]
+}
